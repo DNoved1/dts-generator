@@ -161,7 +161,7 @@ export function generate(options: Options, sendMessage: (message: string) => voi
 			}
 
 			var emitOutput = program.emit(sourceFile, writeFile);
-			if (emitOutput.emitSkipped || emitOutput.diagnostics.length > 0) {
+			if (emitOutput.emitSkipped) {
 				reject(getError(
 					emitOutput.diagnostics
 						.concat(program.getSemanticDiagnostics(sourceFile))
@@ -170,6 +170,14 @@ export function generate(options: Options, sendMessage: (message: string) => voi
 				));
 
 				return true;
+			}
+			else if (emitOutput.diagnostics.length > 0) {
+				sendMessage(getError(
+					emitOutput.diagnostics
+						.concat(program.getSemanticDiagnostics(sourceFile))
+						.concat(program.getSyntacticDiagnostics(sourceFile))
+						.concat(program.getDeclarationDiagnostics(sourceFile))
+				).toString());
 			}
 		});
 
