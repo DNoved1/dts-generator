@@ -222,7 +222,7 @@ export function generate(options: Options, sendMessage: (message: string) => voi
 			});
 
 			output.write(content.replace(nonEmptyLineStart, '$&' + indent));
-			output.write(eol + '}' + eol);
+			output.write('}' + eol + eol);
 		}
 		else {
 			output.write(declarationFile.text);
