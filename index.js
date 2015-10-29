@@ -102,6 +102,8 @@ function generate(options, sendMessage) {
                 output.write(("/// <reference path=\"" + path + "\" />") + eol);
             });
         }
+        var mainExportDeclaration = false;
+        var mainExportAssignment = false;
         program.getSourceFiles().some(function (sourceFile) {
             // Source file is a default library, or other dependency from another project, that should not be included in
             // our bundled output
@@ -116,6 +118,13 @@ function generate(options, sendMessage) {
             if (sourceFile.fileName.slice(-5) === '.d.ts') {
                 writeDeclaration(sourceFile);
                 return;
+            }
+            // We can optionally output the main module if there's something to export.
+            if (options.main && options.main === (options.name + filenameToMid(sourceFile.fileName.slice(baseDir.length, -3)))) {
+                ts.forEachChild(sourceFile, function (node) {
+                    mainExportDeclaration = mainExportDeclaration || node.kind === 215 /* ExportDeclaration */;
+                    mainExportAssignment = mainExportAssignment || node.kind === 214 /* ExportAssignment */;
+                });
             }
             var emitOutput = program.emit(sourceFile, writeFile);
             if (emitOutput.emitSkipped) {
@@ -132,10 +141,20 @@ function generate(options, sendMessage) {
                     .concat(program.getDeclarationDiagnostics(sourceFile))).toString());
             }
         });
-        if (options.main) {
+        if (options.main && (mainExportDeclaration || mainExportAssignment)) {
             output.write(("declare module '" + options.name + "' {") + eol + indent);
-            output.write(("import main = require('" + options.main + "');") + eol + indent);
-            output.write('export = main;' + eol);
+            if (compilerOptions.target >= 2 /* ES6 */) {
+                if (mainExportAssignment) {
+                    output.write(("export {default} from '" + options.main + "';") + eol + indent);
+                }
+                if (mainExportDeclaration) {
+                    output.write(("export * from '" + options.main + "';") + eol);
+                }
+            }
+            else {
+                output.write(("import main = require('" + options.main + "');") + eol + indent);
+                output.write('export = main;' + eol);
+            }
             output.write('}' + eol);
             sendMessage("Aliased main module " + options.name + " to " + options.main);
         }
